@@ -4,35 +4,22 @@ from models.bilinearclip import BilinearCLIP
 from settings import MODEL_DATA
 
 def quantify_orthogonality(model):
-    """
-    Quantifies the orthogonality of the weight matrix model.W.
-    Returns the Frobenius norm of (W^T @ W - I).
-    Lower values indicate higher orthogonality.
-    """
-    # Ensure the model is in evaluation mode
     model.eval()
 
     with torch.no_grad():
-        # Get the weight matrix W (shape: D x D)
+
         W = model.W
 
-        # Calculate the dimension D
         D = W.shape[0]
 
-        # Identity matrix on the same device
+
         I = torch.eye(D, device=W.device)
 
-        # Compute W.T @ W
-        # Note: If W is Upper Triangular, this product reveals
-        # how much the basis has been stretched or sheared.
         WTW = torch.matmul(W.t(), W)
 
-        # Calculate the Frobenius Norm of the difference
-        # ||W^T W - I||_F
         diff = WTW - I
         ortho_error = torch.norm(diff, p='fro')
 
-        # Optional: Normalize by D to make it dimension-independent
         normalized_error = ortho_error / D
 
     return ortho_error.item(), normalized_error.item()

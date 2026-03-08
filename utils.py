@@ -16,7 +16,7 @@ def seed_everything(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-seed_everything(42)
+seed_everything(42) # For consistency
 
 def get_optimizer(name):
     print(f"Optimizer: {name}")
@@ -309,12 +309,11 @@ def get_zeroshot_weights(model, classnames, device, templates=None):
     return zeroshot_weights
 
 def get_zeroshot_weights_for_sun397(model, classes, prompt, device):
-    # 1. Create all templates
+
     templates = [prompt % c for c in classes]
 
-    # 2. Encode in chunks to prevent OOM
     all_text_features = []
-    chunk_size = 128  # Adjust based on your GPU (128-512 is usually safe)
+    chunk_size = 128
 
     for i in range(0, len(templates), chunk_size):
         chunk = templates[i: i + chunk_size]
@@ -325,11 +324,9 @@ def get_zeroshot_weights_for_sun397(model, classes, prompt, device):
             chunk_features /= chunk_features.norm(dim=-1, keepdim=True)
             all_text_features.append(chunk_features)
 
-    # 3. Aggregate (average) features for ensembling
-    # Reshape back to [num_classes, num_templates, embedding_dim]
     text_features = torch.cat(all_text_features, dim=0)
     text_features = text_features.view(len(classes), -1, text_features.shape[-1])
-    text_features = text_features.mean(dim=1)  # Mean over templates
+    text_features = text_features.mean(dim=1)
     text_features /= text_features.norm(dim=-1, keepdim=True)
     return text_features
 

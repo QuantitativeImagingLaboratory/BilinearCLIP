@@ -1,9 +1,8 @@
-# from BilinearClipHead import *
 from models.bilinearclip import BilinearCLIP
 import argparse
 from data_loader import get_dataset
 from losses import contrastive
-from settings import MODEL_DATA, MODEL_DATA_SIGLIP
+from settings import MODEL_DATA
 from utils import *
 
 
@@ -77,8 +76,6 @@ def train(config, reload=False, ablation=None):
         scheduler = get_scheduler(Training, optimizer, epochs)
 
     for epoch in range(epochs):
-
-
         model.train()
         train_loss = 0
         pbar = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{epochs} [Train]")
@@ -95,14 +92,11 @@ def train(config, reload=False, ablation=None):
                 batch_text = text_tokens[labels].to(device)
                 logits_per_image, logits_per_text = model(images, batch_text)
 
-            # 2. Define ground truth (diagonal indices)
-            # Each image at index i matches the text at index i
             ground_truth = torch.arange(len(images), device=device)
 
             if loss_function == "contrastive":
                 loss = contrastive(logits_per_image, logits_per_text, ground_truth)
 
-            # 4. Backward pass
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()

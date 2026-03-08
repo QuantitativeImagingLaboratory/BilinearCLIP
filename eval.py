@@ -6,10 +6,8 @@ import argparse
 from data_loader import get_dataset
 import csv
 from utils import get_config_file, get_zeroshot_weights_for_sun397
-
 from settings import *
-from PIL import Image, ImageFile
-
+from PIL import ImageFile
 from utils import get_zeroshot_weights
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True

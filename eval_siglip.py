@@ -40,7 +40,7 @@ def log_results_to_csv(dataset_name, orig_acc, bilinear_acc, filename="experimen
         ])
 
 def fix_grammar(prompt):
-    # Quick fix for common vowel starts
+
     vowels = ('a', 'e', 'i', 'o', 'u')
     if "a photo of a " in prompt:
         object_name = prompt.split("a photo of a ")[1]

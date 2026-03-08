@@ -18,15 +18,13 @@ def plot_congestion(zs_match, zs_unmatch, label_matcing, label_unmatching, color
     kde_match = gaussian_kde(zs_match)
     kde_unmatch = gaussian_kde(zs_unmatch)
 
-    # 2. Define the range for the x-axis (angles)
     x = np.linspace(min(min(zs_match), min(zs_unmatch)),
                     max(max(zs_match), max(zs_unmatch)), 1000)
 
-    # 3. Calculate density values
     p1 = kde_match(x)
     p2 = kde_unmatch(x)
     plt.figure(figsize=(12, 7))
-    # 4. Plot the lines
+
     sns.kdeplot(zs_match, color=color_m, linestyle="--", label=label_matcing)
     sns.kdeplot(zs_unmatch, color=color_u, alpha=0.9, label=label_unmatching)
 
@@ -36,13 +34,13 @@ def plot_congestion(zs_match, zs_unmatch, label_matcing, label_unmatching, color
 
 
     plt.rcParams.update({
-        'figure.autolayout': True,  # Ensures labels don't get cut off
-        'savefig.dpi': 300,  # High resolution for print
-        'savefig.format': 'pdf',  # Vector format is better for Overleaf/LaTeX
+        'figure.autolayout': True,
+        'savefig.dpi': 300,
+        'savefig.format': 'pdf',
         'font.size': 12
     })
 
-    # 5. Shade the overlap area (the minimum of the two densities)
+
     plt.fill_between(x, np.minimum(p1, p2),
                      color='red',
                      alpha=0.2,
@@ -68,19 +66,16 @@ def plot_congestion(zs_match, zs_unmatch, label_matcing, label_unmatching, color
 def plot_matching_vs_unmatching(model, dataloader, class_names, prompt_template, dataset_name, device='cuda', num_negatives=5, samples_to_polt=-1):
     model.eval()
 
-    # Storage for angles
     zs_match = []
     zs_unmatch = []
     ad_match = []
     ad_unmatch = []
 
-    # 1. Pre-compute Text Features
     prompts = [prompt_template % c for c in class_names]
     text_tokens = clip.tokenize(prompts).to(device)
     T_f = model.model.encode_text(text_tokens)
-    T_f = T_f / T_f.norm(dim=-1, keepdim=True)  # [100, 512]
+    T_f = T_f / T_f.norm(dim=-1, keepdim=True)
 
-    # 2. Iterate and Calculate
     count = 0
 
     samples_to_polt = samples_to_polt if samples_to_polt > 0 else len(dataloader.dataset)
@@ -89,11 +84,9 @@ def plot_matching_vs_unmatching(model, dataloader, class_names, prompt_template,
     for images, labels in pbar:
         images, labels = images.to(device), labels.to(device)
 
-        # Original Image Features
         I_f = model.model.encode_image(images)
         I_f = I_f / I_f.norm(dim=-1, keepdim=True)
 
-        # Rotated Image Features
         I_f_ad = (I_f @ model.W)
         I_f_ad = I_f_ad / I_f_ad.norm(dim=-1, keepdim=True)
 
@@ -101,7 +94,6 @@ def plot_matching_vs_unmatching(model, dataloader, class_names, prompt_template,
             gt_idx = labels[i].item()
 
             # --- Zero Shot ---
-            # Matching
             sim_match = torch.dot(I_f[i], T_f[gt_idx]).clamp(-1, 1)
             zs_match.append(torch.acos(sim_match).item() * (180 / np.pi))
 
@@ -112,7 +104,7 @@ def plot_matching_vs_unmatching(model, dataloader, class_names, prompt_template,
                 sim_unmatch = torch.dot(I_f[i], T_f[w_idx]).clamp(-1, 1)
                 zs_unmatch.append(torch.acos(sim_unmatch).item() * (180 / np.pi))
 
-            # --- Adapted ---
+            # --- BiCLIP ---
             # Matching
             sim_match_ad = torch.dot(I_f_ad[i], T_f[gt_idx]).clamp(-1, 1)
             ad_match.append(torch.acos(sim_match_ad).item() * (180 / np.pi))
@@ -126,7 +118,6 @@ def plot_matching_vs_unmatching(model, dataloader, class_names, prompt_template,
         if count > samples_to_polt:
             break
 
-    # 3. Plotting
     clip_overlap = plot_congestion(zs_match, zs_unmatch,
                     "CLIP: Positive Pairs",
                     "CLIP: Negative Pairs",

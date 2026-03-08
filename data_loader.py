@@ -1,6 +1,4 @@
 import os
-import random
-
 import torch
 from pathlib import Path
 from torchvision.datasets import ImageFolder
@@ -13,7 +11,6 @@ from utils import get_flower_names, get_imagenet_classes, get_eurosat_classes
 from torchvision import transforms
 import numpy as np
 from torch.utils.data import Subset, DataLoader
-from datasets import load_dataset
 from torch.utils.data import Dataset
 
 def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_shots=-1):
@@ -40,7 +37,6 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         def __getitem__(self, index):
             x, y = self.subset[index]
 
-            # Caltech101 is greyscale needed for siglip
             if hasattr(x, 'convert'):
                 x = x.convert("RGB")
 
@@ -110,25 +106,26 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
     elif dataset_name == "sun397":
         from datasets import load_from_disk
 
-        # Point to the NEW small folder
+        # Point to the folder contianing the dataset
         small_path = "/media/pmantini/New Volume/Research/Datasets/SUN397_fewshot_16"
+        assert small_path is not None, f"{dataset_name} Dataset is not defined"
+
         small_bundle = load_from_disk(small_path)
 
         def process_class_name(raw_name):
             names = raw_name.split('/')[2:]
-            names = names[::-1]  # put words like indoor/outdoor at first
+            names = names[::-1]
             classname = ' '.join(names)
             return classname
 
         classes_all = small_bundle['train'].features["label"].names
         classes = [process_class_name(c) for c in classes_all]
 
-        # Map to your Wrapper
+
         class HFDatasetWrapper(Dataset):
             def __init__(self, hf_dataset, transform=None):
                 self.hf_dataset = hf_dataset
                 self.transform = transform
-                # Fast label access
                 self._labels = self.hf_dataset['label']
 
             def __getitem__(self, index):
@@ -145,7 +142,7 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         test_ds = HFDatasetWrapper(small_bundle['test'], transform=preprocess)
 
         prompt = "a centered photo of %s."
-        # prompt = "a photo of a %s."
+
 
     elif dataset_name == "dtd":
         train_ds = DTD(root, split="train", download=True, transform=train_preprocess)
@@ -162,9 +159,6 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
 
         train_ds = ApplyTransform(train_ds, transform=train_preprocess)
         test_ds = ApplyTransform(test_ds, transform=preprocess)
-
-
-
         classes = full_ds.classes
         classes = get_eurosat_classes(classes)
         prompt = "a centered satellite photo of %s."
@@ -199,44 +193,41 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         prompt = "a centered photo of a %s."
 
     elif dataset_name == "ucf101":
-        # Path where images were extracted using the parallel script
-        # data_path = "/media/pmantini/New Volume/Research/Datasets/UCF101/images/"
-        data_path = Path("/home/pmantini/Documents/Research/clip/ucf/images")
-        split_dir = Path("/home/pmantini/Documents/Research/clip/ucf/ucfTrainTestlist/")
+        d_path = "/home/pmantini/Documents/Research/clip/ucf/images"
+        s_path = "/home/pmantini/Documents/Research/clip/ucf/ucfTrainTestlist/"
 
-        # Choose which fold to use (Split 1 is the most common benchmark)
+        assert d_path is not None, f"{dataset_name} path is not defined"
+        assert s_path is not None, f"{dataset_name} path is not defined"
+
+        data_path = Path(d_path)
+        split_dir = Path(s_path)
+
+
         train_list_file = split_dir / "trainlist01.txt"
         test_list_file = split_dir / "testlist01.txt"
 
         def load_split(list_file, is_test=False):
             samples = []
             with open(list_file, 'r') as f:
-                for line in f:
-                    # Train format: "ApplyEyeMakeup/v_ApplyEyeMakeup_g08_c01.avi 1"
-                    # Test format:  "ApplyEyeMakeup/v_ApplyEyeMakeup_g01_c01.avi"
+                for line in f:                    
                     parts = line.strip().split(' ')
                     video_rel_path = parts[0]
-
-                    # Convert .avi path to our .jpg path
-                    # e.g. ApplyEyeMakeup/v_ApplyEyeMakeup_g08_c01.jpg
+                    
                     img_rel_path = video_rel_path.replace('.avi', '.jpg')
                     img_full_path = data_path / img_rel_path
-
-                    # Get class name and label
+                    
                     class_name = video_rel_path.split('/')[0]
-                    # We'll let the dataset handle numeric labels based on sorted folder names
-                    # to keep it consistent with ImageFolder
+
                     samples.append((str(img_full_path), class_name))
             return samples
 
         train_samples = load_split(train_list_file)
         test_samples = load_split(test_list_file, is_test=True)
-
-        # Get unique classes and map to IDs (to match ImageFolder behavior)
+        
         all_classes = sorted(list(set([s[1] for s in train_samples + test_samples])))
         class_to_idx = {cls: i for i, cls in enumerate(all_classes)}
 
-        # Simple Custom Dataset to wrap the file lists
+
         class FileListDataset(Dataset):
             def __init__(self, samples, class_to_idx, transform=None):
                 self.samples = samples
@@ -260,32 +251,30 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         classes = [re.sub(r'(?<!^)(?=[A-Z])', ' ', c) for c in classes]
         prompt = "a photo of a person %s."
     elif dataset_name == "ImageNet".lower():
-        def read_imagenet_classes():
-            filename = "/home/pmantini/Documents/Research/clip/imagenet/classes"
-            classes_loaded = []
-            with open(filename, "r") as f:
-                all_classes = f.readlines()
-
-            classes_loaded += [this_classes.split(",", 1)[1] for this_classes in all_classes]
-
-            return classes_loaded
+        # def read_imagenet_classes():
+        #     filename = "/home/pmantini/Documents/Research/clip/imagenet/classes"
+        #     classes_loaded = []
+        #     with open(filename, "r") as f:
+        #         all_classes = f.readlines()
+        #
+        #     classes_loaded += [this_classes.split(",", 1)[1] for this_classes in all_classes]
+        #
+        #     return classes_loaded
 
         if os.getenv("SABINE", False):
             train_root = "imagenet/partial16"
         else:
             train_root = "/home/pmantini/Documents/Research/clip/imagenet/partial16"
 
+        assert train_root is not None, f"{dataset_name} path is not defined"
 
         train_ds = ImageFolder(
             root=train_root,
             transform=train_preprocess  # Use the CLIP preprocess function
         )
 
-        # train_ds = ImageNet(root=root, split="train", download=False, transform=preprocess)
+
         test_ds = ImageNet(root=root, split="val", transform=preprocess)
-        # url = "https://s3.amazonaws.com/deep-learning-models/image-models/imagenet_class_index.json"
-        # class_idx = requests.get(url).json()
-        # all_classes = read_imagenet_classes()
         all_classes = get_imagenet_classes()
         classes = [label.replace('\n', '').strip() for label in all_classes]
 
@@ -302,13 +291,11 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         elif hasattr(train_ds, '_labels'):
             labels = np.array(train_ds._labels)
         else:
-            # labels = np.array([train_ds[i][1] for i in range(len(train_ds))])
             first_item = train_ds[0]
             if isinstance(first_item, dict):
-                # Extract 'label' from every dict in the dataset
                 labels = np.array([train_ds[i]['label'] for i in range(len(train_ds))])
             else:
-                # Fallback for standard (image, label) tuples
+
                 labels = np.array([train_ds[i][1] for i in range(len(train_ds))])
 
         few_shot_indices = []
