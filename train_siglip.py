@@ -120,6 +120,7 @@ def train(config, reload=False):
         correct = 0
         total = 0
         text_tokens_dev = text_tokens.to(device)
+
         with torch.no_grad():
             try:
                 for images, labels in tqdm(test_loader, desc="[Validating]"):

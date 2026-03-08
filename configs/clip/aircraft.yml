@@ -23,7 +23,55 @@
     <<: *t_defaults
     lr: 1e-3
     weight_decay: 1e-4
-    epochs: 50
+    epochs: 45
+
+8_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 8
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
+
+4_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 4
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
+
+2_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 2
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
+
+1_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 1
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
 
 16_shot_rn50:
   Dataset:
@@ -34,4 +82,55 @@
   Training:
     <<: *t_defaults
 
+16_shot_vit16_ablation_1:
+  Dataset:
+    <<: *ds_defaults
+  Model:
+    <<: *m_defaults
+    upper_triangle: False
+    w_initialization: "random"
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
 
+16_shot_vit16_ablation_2:
+  Dataset:
+    <<: *ds_defaults
+  Model:
+    <<: *m_defaults
+    upper_triangle: True
+    w_initialization: "random"
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
+
+16_shot_vit16_ablation_3:
+  Dataset:
+    <<: *ds_defaults
+  Model:
+    <<: *m_defaults
+    upper_triangle: False
+    w_initialization: "identity"
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45
+
+16_shot_vit16_ablation_4:
+  # Not needed, same as 16 shot
+  Dataset:
+    <<: *ds_defaults
+    upper_triangle: True
+    w_initialization: "identity"
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 1e-3
+    weight_decay: 1e-4
+    epochs: 45

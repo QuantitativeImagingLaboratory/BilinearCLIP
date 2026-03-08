@@ -45,9 +45,12 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
+#    weight_decay: 1e-1
+#    lr: 8e-4
+#    epochs: 20
     weight_decay: 5e-2
-    lr: 8e-4
-    epochs: 20
+    lr: 4e-4
+    epochs: 30
 
 2_shot_vit16:
   Dataset:
@@ -58,8 +61,8 @@
   Training:
     <<: *t_defaults
     weight_decay: 5e-2
-    lr: 8e-4
-    epochs: 20
+    lr: 4e-4
+    epochs: 30
 
 1_shot_vit16:
   Dataset:

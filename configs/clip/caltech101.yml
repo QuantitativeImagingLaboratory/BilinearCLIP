@@ -1,14 +1,14 @@
 .dataset_defaults: &ds_defaults
-  dataset: "aircraft"
+  dataset: "caltech101"
   n_shot: 16
 
 .model_defaults: &m_defaults
-  backbone: 'ViT-B-16-SigLIP'
+  backbone: 'ViT-B/16'
   upper_triangle: True
 
 .training_defaults: &t_defaults
-  epochs: 30
-  loss: "siglip"
+  epochs: 100
+  loss: "contrastive"
   optimizer: "adamw"
   lr: 1e-4
   weight_decay: 0.1
@@ -21,9 +21,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-4
-    lr: 1e-3
-    epochs: 45
+    weight_decay: 0.5
+#    lr: 1e-3
+    epochs: 20
 
 8_shot_vit16:
   Dataset:
@@ -33,10 +33,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-#    weight_decay: 1e-4
+    weight_decay: 0.5
 #    lr: 1e-3
-#    epochs: 45
-    epochs: 5
+    epochs: 20
 
 4_shot_vit16:
   Dataset:
@@ -46,8 +45,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    lr: 5e-5
-    epochs: 5
+    weight_decay: 0.5
+#    lr: 1e-3
+    epochs: 20
 
 2_shot_vit16:
   Dataset:
@@ -57,7 +57,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    epochs: 5
+    weight_decay: 0.5
+#    lr: 1e-3
+    epochs: 20
 
 1_shot_vit16:
   Dataset:
@@ -67,6 +69,8 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
+    weight_decay: 0.5
+#    lr: 1e-3
     epochs: 20
 
 16_shot_rn50:

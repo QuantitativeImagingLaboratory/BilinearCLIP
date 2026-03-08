@@ -25,6 +25,54 @@
     weight_decay: 5.0
     epochs: 10
 
+8_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 8
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 5e-5
+    weight_decay: 5.0
+    epochs: 10
+
+4_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 4
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 5e-5
+    weight_decay: 5.0
+    epochs: 10
+
+2_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 2
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 5e-5
+    weight_decay: 5.0
+    epochs: 10
+
+1_shot_vit16:
+  Dataset:
+    <<: *ds_defaults
+    n_shot: 1
+  Model:
+    <<: *m_defaults
+  Training:
+    <<: *t_defaults
+    lr: 5e-5
+    weight_decay: 5.0
+    epochs: 10
+
 16_shot_rn50:
   Dataset:
     <<: *ds_defaults

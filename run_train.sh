@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # List of datasets to process (excluding CIFAR100 and SUN397)
-DATASETS=("oxfordpet" "aircraft" "flowers102" "stanfordcars" "food101" "dtd" "eurosat" "caltech101")
+DATASETS=("imagenet" "oxfordpet" "aircraft" "flowers102" "stanfordcars" "food101" "dtd" "eurosat")
 
 # Training parameters
 NUMBER=$1
@@ -23,7 +23,7 @@ do
     echo "------------------------------------------------"
 
     # Execute the python command
-    python eval.py -d "$DS" -n $NUMBER -b $BACKBONE -o
+    python eval.py -d "$DS" -n $NUMBER -b $BACKBONE
 
     # Optional: Check if the last command failed
     if [ $? -eq 0 ]; then

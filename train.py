@@ -1,4 +1,5 @@
-from BilinearClipHead import *
+# from BilinearClipHead import *
+from models.bilinearclip import BilinearCLIP
 import argparse
 from data_loader import get_dataset
 from losses import contrastive
@@ -6,7 +7,7 @@ from settings import MODEL_DATA, MODEL_DATA_SIGLIP
 from utils import *
 
 
-def train(config, reload=False):
+def train(config, reload=False, ablation=None):
 
     Dataset = config["Dataset"]
     Model = config["Model"]
@@ -20,10 +21,11 @@ def train(config, reload=False):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     upper_triangle = Model["upper_triangle"]
-
+    initialization = Model["w_initialization"] if "w_initialization" in Model.keys() else "identity"
     loss_function = Training["loss"]
 
-    model = BilinearCLIP(vit_model_name, upper_triangle=upper_triangle).to(device)
+    model = BilinearCLIP(vit_model_name, upper_triangle=upper_triangle, initialization=initialization).to(device)
+
     model.float()
 
     num_shot = Dataset["n_shot"]
@@ -39,14 +41,16 @@ def train(config, reload=False):
         save_model_name = vit_model_name.replace("/", "")
         save_path = f"{save_model_name}_{save_path}"
 
+    if ablation is not None:
+        save_path = f"ablation_{ablation}_{save_path}"
 
     save_path = os.path.join(MODEL_DATA, save_path)
+    print(f"Saving model to {save_path}.")
 
     if reload:
         print(f"Loading weights from {save_path}")
         checkpoint = torch.load(save_path, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
-
 
     if dataset == "imagenet":
         text_features = get_zeroshot_weights(model.model, classes, device)
@@ -176,9 +180,11 @@ if __name__ == "__main__":
                         help='Specify the backbone (rn50, vit16, vit32).')
     parser.add_argument('-r', '--reload', action='store_true',
                         help='Reload weights and reset the optimizer state.')
+    parser.add_argument('-a', '--ablation', type=str, default=None,
+                        help='Define ablation 1, 2, or 3.')
 
     args = parser.parse_args()
 
-    cfg = get_config_file(args.dataset, args.num_shot, args.backbone)
+    cfg = get_config_file(args.dataset, args.num_shot, args.backbone, ablation=args.ablation)
 
-    train(cfg, reload=args.reload)
+    train(cfg, reload=args.reload, ablation=args.ablation)

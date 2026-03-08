@@ -1,5 +1,5 @@
 .dataset_defaults: &ds_defaults
-  dataset: "aircraft"
+  dataset: "sun397"
   n_shot: 16
 
 .model_defaults: &m_defaults
@@ -21,9 +21,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-4
-    lr: 1e-3
-    epochs: 45
+#    weight_decay: 1e-4
+#    lr: 1e-3
+    epochs: 30
 
 8_shot_vit16:
   Dataset:
@@ -33,10 +33,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-#    weight_decay: 1e-4
-#    lr: 1e-3
-#    epochs: 45
-    epochs: 5
+    weight_decay: 1e-4
+    lr: 1e-3
+    epochs: 45
 
 4_shot_vit16:
   Dataset:
@@ -46,8 +45,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    lr: 5e-5
-    epochs: 5
+    weight_decay: 1e-4
+    lr: 1e-3
+    epochs: 45
 
 2_shot_vit16:
   Dataset:
@@ -57,7 +57,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    epochs: 5
+    weight_decay: 1e-4
+    lr: 1e-3
+    epochs: 45
 
 1_shot_vit16:
   Dataset:
@@ -67,7 +69,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    epochs: 20
+    weight_decay: 1e-4
+    lr: 1e-3
+    epochs: 45
 
 16_shot_rn50:
   Dataset:

@@ -33,9 +33,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-2
-    lr: 5e-4
-    epochs: 20
+#    weight_decay: 1e-2
+#    lr: 5e-4
+    epochs: 10
 
 4_shot_vit16:
   Dataset:
@@ -45,9 +45,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-2
-    lr: 5e-4
-    epochs: 20
+#    weight_decay: 1
+#    lr: 5e-5
+    epochs: 10
 
 2_shot_vit16:
   Dataset:
@@ -57,9 +57,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-2
-    lr: 5e-4
-    epochs: 20
+#    weight_decay: 1e-2
+    lr: 1e-4
+    epochs: 25
 
 1_shot_vit16:
   Dataset:
@@ -69,9 +69,9 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    weight_decay: 1e-2
-    lr: 5e-4
-    epochs: 20
+#    weight_decay: 1e-2
+#    lr: 5e-4
+    epochs: 10
 
 16_shot_rn50:
   Dataset:

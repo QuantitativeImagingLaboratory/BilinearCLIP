@@ -7,7 +7,7 @@ import open_clip
 import argparse
 from data_loader import get_dataset
 import csv
-from utils import get_config_file
+from utils import get_config_file, get_zeroshot_weights_for_sun397
 
 from settings import *
 from PIL import Image, ImageFile
@@ -48,17 +48,27 @@ def fix_grammar(prompt):
             return prompt.replace("a photo of a ", "a photo of an ")
     return prompt
 
-def evaluate_zero_shot(eval_model, dataset, preproces_model=None, is_bilinear=True, backbone=None):
+def evaluate_zero_shot(eval_model, dataset, preproces_model=None, is_bilinear=True, backbone=None, num_shots=-1):
 
     if preproces_model is None:
-        train_loader, test_loader, prompt, classes = get_dataset(dataset, eval_model)
+        train_loader, test_loader, prompt, classes = get_dataset(dataset, eval_model, num_shots=num_shots)
     else:
-        train_loader, test_loader, prompt, classes = get_dataset(dataset, preproces_model)
+        train_loader, test_loader, prompt, classes = get_dataset(dataset, preproces_model, num_shots=num_shots)
 
     tokenizer = open_clip.get_tokenizer(backbone)
     text_tokens = tokenizer(classes).to(device)
-
     eval_model.eval()
+    with torch.no_grad():
+        if is_bilinear:
+            text_features = eval_model.model.encode_text(text_tokens)
+        else:
+            # if dataset == "sun397":
+            #     text_features_norm = get_zeroshot_weights_for_sun397(eval_model, classes, prompt, device)
+            #     print(text_features_norm.shape)
+            # else:
+            text_features = eval_model.encode_text(text_tokens)
+            text_features_norm = text_features/text_features.norm(dim=-1, keepdim=True)
+
     correct = 0
     total = 0
 
@@ -70,15 +80,16 @@ def evaluate_zero_shot(eval_model, dataset, preproces_model=None, is_bilinear=Tr
                 labels = labels.to(device)
 
                 if is_bilinear:
-                    logits = eval_model(images, text_tokens=text_tokens)
+                    # logits = eval_model(images, text_tokens=text_tokens)
+                    logits = eval_model(images, text_features=text_features)
                 else:
                     image_features = eval_model.encode_image(images)
-                    text_features = eval_model.encode_text(text_tokens)
+                    # text_features = eval_model.encode_text(text_tokens)
+
                     image_features /= image_features.norm(dim=-1, keepdim=True)
-                    text_features /= text_features.norm(dim=-1, keepdim=True)
+                    # text_features /= text_features.norm(dim=-1, keepdim=True)
 
-
-                    logits = (image_features @ text_features.T) * eval_model.logit_scale.exp() + eval_model.logit_bias
+                    logits = (image_features @ text_features_norm.T) * eval_model.logit_scale.exp() + eval_model.logit_bias
 
                 preds = logits.argmax(dim=-1)
                 correct += (preds == labels).sum().item()
@@ -134,10 +145,10 @@ def evaluation(config, original=False):
     orig_acc = 0
     bilinear_acc = 0
     if original:
-        orig_acc = evaluate_zero_shot(original_clip, dataset, model, is_bilinear=False, backbone=vit_model_name)
+        orig_acc = evaluate_zero_shot(original_clip, dataset, model, is_bilinear=False, backbone=vit_model_name, num_shots=num_shot)
     else:
         print("Skipping evaluation of zeroshot clip")
-    bilinear_acc = evaluate_zero_shot(model, dataset, is_bilinear=True, backbone=vit_model_name)
+    bilinear_acc = evaluate_zero_shot(model, dataset, is_bilinear=True, backbone=vit_model_name, num_shots=num_shot)
 
     print(f"\n--- Zero-Shot Results ---")
     print(f"Standard CLIP Accuracy:  {orig_acc:.2f}%")

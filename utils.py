@@ -88,6 +88,21 @@ def get_flower_names(i):
 
     return flower_names[i]
 
+def get_eurosat_classes(input_list):
+    class_map = {
+        "annualcrop": "annual crop land",
+        "forest": "forest",
+        "herbaceousvegetation": "herbaceous vegetation land",
+        "highway": "highway or road",
+        "industrial": "industrial buildings",
+        "pasture": "pasture land",
+        "permanentcrop": "permanent crop land",
+        "residential": "residential buildings",
+        "river": "river",
+        "sealake": "sea or lake"
+    }
+
+    return [class_map[k.lower()] for k in input_list]
 
 def get_imagenet_templates():
     # imagenet_templates = ["a bad photo of a {}.", "a photo of many {}.", "a sculpture of a {}.", "a photo of the hard to see {}.", "a low resolution photo of the {}.", "a rendering of a {}.", "graffiti of a {}.", "a bad photo of the {}.", "a cropped photo of the {}.", "a tattoo of a {}.", "the embroidered {}.", "a photo of a hard to see {}.", "a bright photo of a {}.", "a photo of a clean {}.", "a photo of a dirty {}.", "a dark photo of the {}.", "a drawing of a {}.", "a photo of my {}.", "the plastic {}.", "a photo of the cool {}.", "a close-up photo of a {}.", "a black and white photo of the {}.", "a painting of the {}.", "a painting of a {}.", "a pixelated photo of the {}.", "a sculpture of the {}.", "a bright photo of the {}.", "a cropped photo of a {}.", "a plastic {}.", "a photo of the dirty {}.", "a jpeg corrupted photo of a {}.", "a blurry photo of the {}.", "a photo of the {}.", "a good photo of the {}.", "a rendering of the {}.", "a {} in a video game.", "a photo of one {}.", "a doodle of a {}.", "a close-up photo of the {}.", "a photo of a {}.", "the origami {}.", "the {} in a video game.", "a sketch of a {}.", "a doodle of the {}.", "a origami {}.", "a low resolution photo of a {}.", "the toy {}.", "a rendition of the {}.", "a photo of the clean {}.", "a photo of a large {}.", "a rendition of a {}.", "a photo of a nice {}.", "a photo of a weird {}.", "a blurry photo of a {}.", "a cartoon {}.", "art of a {}.", "a sketch of the {}.", "a embroidered {}.", "a pixelated photo of a {}.", "itap of the {}.", "a jpeg corrupted photo of the {}.", "a good photo of a {}.", "a plushie {}.", "a photo of the nice {}.", "a photo of the small {}.", "a photo of the weird {}.", "the cartoon {}.", "art of the {}.", "a drawing of the {}.", "a photo of the large {}.", "a black and white photo of a {}.", "the plushie {}.", "a dark photo of a {}.", "itap of a {}.", "graffiti of the {}.", "a toy {}.", "itap of my {}.", "a photo of a cool {}.", "a photo of a small {}.", "a tattoo of the {}."]
@@ -293,8 +308,33 @@ def get_zeroshot_weights(model, classnames, device, templates=None):
         zeroshot_weights = torch.stack(zeroshot_weights, dim=1).to(device)
     return zeroshot_weights
 
+def get_zeroshot_weights_for_sun397(model, classes, prompt, device):
+    # 1. Create all templates
+    templates = [prompt % c for c in classes]
 
-def get_config_file(dataset, num_shot, backbone, vlm="clip"):
+    # 2. Encode in chunks to prevent OOM
+    all_text_features = []
+    chunk_size = 128  # Adjust based on your GPU (128-512 is usually safe)
+
+    for i in range(0, len(templates), chunk_size):
+        chunk = templates[i: i + chunk_size]
+        text_tokens = clip.tokenize(chunk).to(device)
+
+        with torch.no_grad():
+            chunk_features = model.encode_text(text_tokens)
+            chunk_features /= chunk_features.norm(dim=-1, keepdim=True)
+            all_text_features.append(chunk_features)
+
+    # 3. Aggregate (average) features for ensembling
+    # Reshape back to [num_classes, num_templates, embedding_dim]
+    text_features = torch.cat(all_text_features, dim=0)
+    text_features = text_features.view(len(classes), -1, text_features.shape[-1])
+    text_features = text_features.mean(dim=1)  # Mean over templates
+    text_features /= text_features.norm(dim=-1, keepdim=True)
+    return text_features
+
+
+def get_config_file(dataset, num_shot, backbone, vlm="clip", ablation=None):
 
     assert backbone.lower() in ["rn50", "vit16", "vit32"], f"backbone {backbone} not supported"
 
@@ -311,6 +351,9 @@ def get_config_file(dataset, num_shot, backbone, vlm="clip"):
     #     config_file = os.path.join(CONFIG_FOLDER, "imagenet.yml")
     #     cfg = yaml.load(open(config_file, "r"), Loader=yaml.FullLoader)
 
-    config_name = f"{num_shot}_shot_{backbone.lower()}"
-
+    if ablation is None:
+        config_name = f"{num_shot}_shot_{backbone.lower()}"
+    else:
+        config_name = f"{num_shot}_shot_{backbone.lower()}_ablation_{ablation}"
+    print(f"Loading config from {config_name}.")
     return cfg[config_name]

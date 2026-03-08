@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 class BilinearCLIP(nn.Module):
-    def __init__(self, model_name="ViT-B/32", device="cuda", freeze_clip=True, upper_triangle=False):
+    def __init__(self, model_name="ViT-B/32", device="cuda", freeze_clip=True, upper_triangle=False, initialization="identity"):
         super().__init__()
         self.model, self.preprocess = clip.load(model_name, device=device, jit=False)
 
@@ -14,12 +14,21 @@ class BilinearCLIP(nn.Module):
         embed_dim = self.model.visual.output_dim
 
         model_dtype = self.model.dtype
-        self.W = nn.Parameter(torch.eye(embed_dim, device=device, dtype=model_dtype))
+        if initialization == "identity":
+            print("Initializing BilinearCLIP with identity initialization")
+            self.W = nn.Parameter(torch.eye(embed_dim, device=device, dtype=model_dtype))
+        elif initialization == "random":
+            print("Initializing BilinearCLIP with random initialization")
+            self.W = nn.Parameter(torch.empty(embed_dim, embed_dim, device=device))
+            # nn.init.xavier_normal_(self.W)
+            nn.init.normal_(self.W, mean=0.0, std=0.02)
 
         self.upper_triangle = upper_triangle
         if self.upper_triangle:
             print("initializing upper triangle")
             self.register_buffer('tri_mask', torch.triu(torch.ones(embed_dim, embed_dim)))
+        else:
+            print("Initializing full rank matrix.")
 
     def forward(self, images, text_tokens=None, text_features=None):
 
@@ -37,7 +46,7 @@ class BilinearCLIP(nn.Module):
         if self.upper_triangle:
             W_upper = self.W * self.tri_mask
         else:
-            self.W
+            W_upper = self.W
 
         logit_scale = self.model.logit_scale.exp()
         logits_per_image = (I_f @ W_upper @ T_f.t()) * logit_scale

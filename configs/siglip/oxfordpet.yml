@@ -54,8 +54,7 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    lr: 5e-4
-    epochs: 20
+    epochs: 25
 
 1_shot_vit16:
   Dataset:
@@ -65,8 +64,7 @@
     <<: *m_defaults
   Training:
     <<: *t_defaults
-    lr: 5e-4
-    epochs: 20
+    epochs: 10
 
 16_shot_rn50:
   Dataset:

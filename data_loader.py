@@ -1,13 +1,15 @@
 import os
-import torch
+import random
 
+import torch
+from pathlib import Path
 from torchvision.datasets import ImageFolder
 from torchvision.datasets import CIFAR100, OxfordIIITPet, FGVCAircraft, Flowers102, ImageNet
 from torchvision.datasets import (
     StanfordCars, Food101, SUN397, DTD,
-    EuroSAT, Caltech101
+    EuroSAT, Caltech101,
 )
-from utils import get_flower_names, get_imagenet_classes
+from utils import get_flower_names, get_imagenet_classes, get_eurosat_classes
 from torchvision import transforms
 import numpy as np
 from torch.utils.data import Subset, DataLoader
@@ -21,6 +23,8 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         root = os.path.expanduser("~/.cache")
 
     preprocess = model.preprocess
+
+
     train_preprocess = transforms.Compose([
         transforms.RandomResizedCrop(size=224, scale=(0.5, 1), interpolation=transforms.InterpolationMode.BICUBIC),
         transforms.RandomHorizontalFlip(p=0.5),
@@ -35,6 +39,11 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
 
         def __getitem__(self, index):
             x, y = self.subset[index]
+
+            # Caltech101 is greyscale needed for siglip
+            if hasattr(x, 'convert'):
+                x = x.convert("RGB")
+
             if self.transform:
                 x = self.transform(x)
             return x, y
@@ -80,7 +89,17 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
 
         train_ds = StanfordCars(root, split="train", download=False, transform=train_preprocess)
         test_ds = StanfordCars(root, split="test", download=False, transform=preprocess)
-        classes = train_ds.classes
+        all_classes = train_ds.classes
+
+        def process_stanford_cars_classes(classname):
+            names = classname.split(' ')
+            year = names.pop(-1)
+            names.insert(0, year)
+            return ' '.join(names)
+
+        classes = [process_stanford_cars_classes(c) for c in all_classes]
+
+        prompt = "a photo of %s, a type of car."
 
     elif dataset_name == "food101":
         train_ds = Food101(root, split="train", download=True, transform=train_preprocess)
@@ -89,31 +108,44 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         prompt = "a photo of %s, a type of food."
 
     elif dataset_name == "sun397":
+        from datasets import load_from_disk
 
-        # full_ds = SUN397(root, download=True, transform=preprocess)
-        # train_size = int(0.8 * len(full_ds))
-        # test_size = len(full_ds) - train_size
-        # train_ds, test_ds = torch.utils.data.random_split(full_ds, [train_size, test_size])
-        # classes = full_ds.classes
-        # prompt = "a photo of a %s, a type of scene."
+        # Point to the NEW small folder
+        small_path = "/media/pmantini/New Volume/Research/Datasets/SUN397_fewshot_16"
+        small_bundle = load_from_disk(small_path)
 
-        # dataset = load_dataset("tanganke/sun397", cache_dir=root, split="train")
-        dataset = load_dataset("1aurent/SUN397", split="train")
+        def process_class_name(raw_name):
+            names = raw_name.split('/')[2:]
+            names = names[::-1]  # put words like indoor/outdoor at first
+            classname = ' '.join(names)
+            return classname
 
-        def transform_fn(examples):
-            images = [preprocess(img.convert("RGB")) for img in examples["image"]]
-            labels = examples["label"]
+        classes_all = small_bundle['train'].features["label"].names
+        classes = [process_class_name(c) for c in classes_all]
 
-            return {"pixel_values": images, "label": labels}
+        # Map to your Wrapper
+        class HFDatasetWrapper(Dataset):
+            def __init__(self, hf_dataset, transform=None):
+                self.hf_dataset = hf_dataset
+                self.transform = transform
+                # Fast label access
+                self._labels = self.hf_dataset['label']
 
-        dataset = dataset.with_transform(transform_fn)
+            def __getitem__(self, index):
+                item = self.hf_dataset[index]
+                x, y = item['image'], item['label']
+                if hasattr(x, 'convert'): x = x.convert("RGB")
+                if self.transform: x = self.transform(x)
+                return x, y
 
-        train_size = int(0.8 * len(dataset))
-        test_size = len(dataset) - train_size
-        train_ds, test_ds = torch.utils.data.random_split(dataset, [train_size, test_size])
+            def __len__(self):
+                return len(self.hf_dataset)
 
-        classes = dataset.features["label"].names
+        train_ds = HFDatasetWrapper(small_bundle['train'], transform=train_preprocess)
+        test_ds = HFDatasetWrapper(small_bundle['test'], transform=preprocess)
+
         prompt = "a centered photo of %s."
+        # prompt = "a photo of a %s."
 
     elif dataset_name == "dtd":
         train_ds = DTD(root, split="train", download=True, transform=train_preprocess)
@@ -131,21 +163,102 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
         train_ds = ApplyTransform(train_ds, transform=train_preprocess)
         test_ds = ApplyTransform(test_ds, transform=preprocess)
 
+
+
         classes = full_ds.classes
+        classes = get_eurosat_classes(classes)
         prompt = "a centered satellite photo of %s."
 
 
     elif dataset_name == "caltech101":
         full_ds = Caltech101(root, download=True, transform=None)
-        train_size = int(0.8 * len(full_ds))
-        test_size = len(full_ds) - train_size
-        train_ds, test_ds = torch.utils.data.random_split(full_ds, [train_size, test_size])
+
+        def get_few_shot_split(full_ds, n_shots=16):
+            indices = np.arange(len(full_ds))
+            labels = [full_ds[i][1] for i in indices]
+
+            train_indices = []
+            test_indices = []
+
+            for label in range(len(full_ds.categories)):
+                label_indices = [i for i, l in enumerate(labels) if l == label]
+                # Sample exactly 16 for training, everything else for testing
+                np.random.shuffle(label_indices)
+                train_indices.extend(label_indices[:n_shots])
+                n_shot_for_test_set = 16
+                test_indices.extend(label_indices[n_shot_for_test_set:n_shot_for_test_set+19])
+
+            return Subset(full_ds, train_indices), Subset(full_ds, test_indices)
+        train_ds, test_ds = get_few_shot_split(full_ds, n_shots=num_shots)
 
         train_ds = ApplyTransform(train_ds, transform=train_preprocess)
         test_ds = ApplyTransform(test_ds, transform=preprocess)
 
         classes = full_ds.categories
-        prompt = "a photo of a %s."
+
+        prompt = "a centered photo of a %s."
+
+    elif dataset_name == "ucf101":
+        # Path where images were extracted using the parallel script
+        # data_path = "/media/pmantini/New Volume/Research/Datasets/UCF101/images/"
+        data_path = Path("/home/pmantini/Documents/Research/clip/ucf/images")
+        split_dir = Path("/home/pmantini/Documents/Research/clip/ucf/ucfTrainTestlist/")
+
+        # Choose which fold to use (Split 1 is the most common benchmark)
+        train_list_file = split_dir / "trainlist01.txt"
+        test_list_file = split_dir / "testlist01.txt"
+
+        def load_split(list_file, is_test=False):
+            samples = []
+            with open(list_file, 'r') as f:
+                for line in f:
+                    # Train format: "ApplyEyeMakeup/v_ApplyEyeMakeup_g08_c01.avi 1"
+                    # Test format:  "ApplyEyeMakeup/v_ApplyEyeMakeup_g01_c01.avi"
+                    parts = line.strip().split(' ')
+                    video_rel_path = parts[0]
+
+                    # Convert .avi path to our .jpg path
+                    # e.g. ApplyEyeMakeup/v_ApplyEyeMakeup_g08_c01.jpg
+                    img_rel_path = video_rel_path.replace('.avi', '.jpg')
+                    img_full_path = data_path / img_rel_path
+
+                    # Get class name and label
+                    class_name = video_rel_path.split('/')[0]
+                    # We'll let the dataset handle numeric labels based on sorted folder names
+                    # to keep it consistent with ImageFolder
+                    samples.append((str(img_full_path), class_name))
+            return samples
+
+        train_samples = load_split(train_list_file)
+        test_samples = load_split(test_list_file, is_test=True)
+
+        # Get unique classes and map to IDs (to match ImageFolder behavior)
+        all_classes = sorted(list(set([s[1] for s in train_samples + test_samples])))
+        class_to_idx = {cls: i for i, cls in enumerate(all_classes)}
+
+        # Simple Custom Dataset to wrap the file lists
+        class FileListDataset(Dataset):
+            def __init__(self, samples, class_to_idx, transform=None):
+                self.samples = samples
+                self.class_to_idx = class_to_idx
+                self.transform = transform
+
+            def __len__(self): return len(self.samples)
+
+            def __getitem__(self, i):
+                path, cls_name = self.samples[i]
+                from PIL import Image
+                img = Image.open(path).convert("RGB")
+                if self.transform: img = self.transform(img)
+                return img, self.class_to_idx[cls_name]
+
+        train_ds = FileListDataset(train_samples, class_to_idx, transform=train_preprocess)
+        test_ds = FileListDataset(test_samples, class_to_idx, transform=preprocess)
+
+        classes = all_classes
+        import re
+        classes = [re.sub(r'(?<!^)(?=[A-Z])', ' ', c) for c in classes]
+        prompt = "a photo of a person %s."
     elif dataset_name == "ImageNet".lower():
         def read_imagenet_classes():
             filename = "/home/pmantini/Documents/Research/clip/imagenet/classes"
@@ -181,7 +294,7 @@ def get_dataset(dataset_name, model, batch_size=64, include_labels=False, num_sh
     else:
         raise ValueError(f"Dataset {dataset_name} not supported.")
 
-    print("Processing for n-shot classification.")
+    print(f"Processing for {num_shots}-shot classification.")
     if num_shots > 0:
 
         if hasattr(train_ds, 'targets'):
