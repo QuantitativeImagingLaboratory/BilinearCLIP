@@ -165,3 +165,18 @@ Caltech101
 ImageNet # Requires external download
 UCF101 # Requires external download
 ```
+## 📜 Citation
+
+If you find BiCLIP useful in your research, please cite our paper:
+
+```bibtex
+@misc{mantini2026biclipdomaincanonicalizationstructured,
+      title={BiCLIP: Domain Canonicalization via Structured Geometric Transformation}, 
+      author={Pranav Mantini and Shishir K. Shah},
+      year={2026},
+      eprint={2603.08942},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2603.08942}, 
+}
+```
