@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software or the BiCLIP method, please cite it as below."
+authors:
+- family-names: "Mantini"
+  given-names: "Pranav"
+  orcid: "https://orcid.org/0000-0001-8871-9068" 
+title: "BiCLIP: Domain Canonicalization via Structured Geometric Transformation"
+version: 1.0.0
+doi: 10.48550/arXiv:2603.08942
+date-released: 2026-03-10
+url: "https://github.com/QuantitativeImagingLaboratory/BilinearCLIP"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Mantini"
+    given-names: "Pranav"
+  journal: "arXiv preprint arXiv:2603.08942"
+  title: "BiCLIP: Domain Canonicalization via Structured Geometric Transformation"
+  year: 2026
+  publisher: "arXiv"
