@@ -15,7 +15,7 @@ $$S_{n,k}^{\text{bi}} = \mathbf{i}_n \mathbf{W} \mathbf{t}_k^\top$$
 
 where $\mathbf{W}$ is a weight matrix of size $R^{DXD}$, for a $D$ dimensional latent space. 
 
-![BiCLIP|500](images/block_diagram.png)
+![BiCLIP|500](docs/assets/block_diagram.png)
 
 
 ## Adaptability of BiCLIP
