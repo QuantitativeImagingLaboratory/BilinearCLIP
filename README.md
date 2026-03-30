@@ -2,7 +2,7 @@
 
 Official implementation for [BiCLIP: Domain Canonicalization via Structured Geometric Transformation](https://arxiv.org/abs/2603.08942)
 
-Visit the official Project Page [BiCLIP](https://quantitativeimaginglaboratory.github.io/BilinearCLIP/){:target="_blank"}
+Visit the official Project Page [BiCLIP](https://quantitativeimaginglaboratory.github.io/BilinearCLIP/)
 
 Official implementation of BiCLIP. BiCLIP is a parameter-efficient framework designed to resolve the domain gap in Vision-Language Models (VLMs) like CLIP and SigLIP. Instead of traditional fine-tuning or unstructured adapters, BiCLIP recovers a canonical transformation that aligns image features to textual anchors using a structured bilinear head.
 
